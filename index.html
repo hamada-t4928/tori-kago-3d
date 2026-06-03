@@ -19,7 +19,7 @@
       position: absolute;
       top: 12px;
       left: 12px;
-      background: rgba(255,255,255,0.9);
+      background: rgba(255,255,255,0.92);
       padding: 10px 14px;
       border-radius: 8px;
       font-size: 13px;
@@ -36,21 +36,16 @@
 <body>
   <div id="info">
     <strong>3D Tori-kago Sample</strong><br>
-    ドラッグで回転 / ホイールでズーム / 右クリックで移動
+    ドラッグで回転 / ホイールでズーム / 右ドラッグで移動
   </div>
 
-  <!-- Three.js 本体 -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-
-  <!-- OrbitControls -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
 
   <script>
-    // シーン
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf3f4f6);
 
-    // カメラ
     const camera = new THREE.PerspectiveCamera(
       60,
       window.innerWidth / window.innerHeight,
@@ -59,35 +54,30 @@
     );
     camera.position.set(16, 18, 26);
 
-    // レンダラー
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
 
-    // コントロール
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
     controls.target.set(0, 7, 0);
 
-    // ライト
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.85);
     scene.add(ambient);
 
-    const dir1 = new THREE.DirectionalLight(0xffffff, 0.8);
-    dir1.position.set(20, 30, 10);
-    scene.add(dir1);
+    const light1 = new THREE.DirectionalLight(0xffffff, 0.75);
+    light1.position.set(20, 30, 10);
+    scene.add(light1);
 
-    const dir2 = new THREE.DirectionalLight(0xffffff, 0.4);
-    dir2.position.set(-15, 20, -10);
-    scene.add(dir2);
+    const light2 = new THREE.DirectionalLight(0xffffff, 0.35);
+    light2.position.set(-15, 20, -10);
+    scene.add(light2);
 
-    // 地面グリッド
     const grid = new THREE.GridHelper(30, 30, 0xcbd5e1, 0xe5e7eb);
     scene.add(grid);
 
-    // 価格に応じた色
     function getColor(price, min, max) {
       const t = (price - min) / (max - min);
       const color = new THREE.Color();
@@ -95,7 +85,6 @@
       return color;
     }
 
-    // ----- 建物設定 -----
     const residentialFloors = [];
     for (let f = 2; f <= 20; f++) residentialFloors.push(f);
 
@@ -111,7 +100,6 @@
       return 0;
     }
 
-    // 住戸データ生成
     const units = [];
 
     residentialFloors.forEach(floor => {
@@ -125,9 +113,7 @@
         return Math.max(1.3, w - edgePenalty);
       });
 
-      const totalWidth =
-        widths.reduce((a, b) => a + b, 0) + gapX * (widths.length - 1);
-
+      const totalWidth = widths.reduce((a, b) => a + b, 0) + gapX * (widths.length - 1);
       let cursorX = -totalWidth / 2;
 
       widths.forEach((w, idx) => {
@@ -160,7 +146,6 @@
     const priceMin = Math.min(...units.map(u => u.priceOku));
     const priceMax = Math.max(...units.map(u => u.priceOku));
 
-    // 1階ポディウム
     const podiumGeo = new THREE.BoxGeometry(22, 1.0, 5.2);
     const podiumMat = new THREE.MeshStandardMaterial({
       color: 0xb8c0cc,
@@ -171,7 +156,6 @@
     podium.position.set(0, 0.5, 0);
     scene.add(podium);
 
-    // 建物本体（住戸ボックス）
     units.forEach(u => {
       const geo = new THREE.BoxGeometry(u.w, u.h, u.d);
       const mat = new THREE.MeshStandardMaterial({
@@ -190,7 +174,6 @@
       scene.add(line);
     });
 
-    // アニメーション
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
@@ -198,7 +181,6 @@
     }
     animate();
 
-    // リサイズ対応
     window.addEventListener("resize", () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -207,4 +189,3 @@
   </script>
 </body>
 </html>
-``
