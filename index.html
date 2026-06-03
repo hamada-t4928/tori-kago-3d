@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Tori-kago Sample v9</title>
+  <title>3D Tori-kago Sample v10</title>
   <style>
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background: #f3f4f6; }
     #info { position: absolute; top: 12px; left: 12px; background: rgba(255,255,255,0.94); padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.7; box-shadow: 0 2px 10px rgba(0,0,0,0.12); z-index: 10; min-width: 340px; max-width: 500px; }
@@ -13,7 +13,7 @@
     #popup { position: absolute; right: 12px; bottom: 12px; width: 320px; background: rgba(255,255,255,0.96); padding: 12px 14px; border-radius: 10px; font-size: 12px; line-height: 1.7; box-shadow: 0 2px 10px rgba(0,0,0,0.14); z-index: 12; display: none; color: #334155; }
     #popup h4 { margin: 0 0 6px 0; font-size: 14px; color: #0f172a; }
     #errorBox { position: absolute; top: 130px; left: 12px; right: 12px; background: rgba(220, 38, 38, 0.95); color: white; padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5; box-shadow: 0 2px 10px rgba(0,0,0,0.18); z-index: 20; display: none; white-space: pre-wrap; word-break: break-word; }
-    #note { position: absolute; left: 12px; bottom: 12px; background: rgba(255,255,255,0.92); padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.6; color: #334155; box-shadow: 0 2px 10px rgba(0,0,0,0.10); z-index: 10; max-width: 620px; }
+    #note { position: absolute; left: 12px; bottom: 12px; background: rgba(255,255,255,0.92); padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.6; color: #334155; box-shadow: 0 2px 10px rgba(0,0,0,0.10); z-index: 10; max-width: 640px; }
     #loading { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.95); padding: 14px 18px; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); z-index: 30; font-size: 14px; color: #0f172a; }
     canvas { display: block; }
   </style>
@@ -31,7 +31,7 @@
     ドラッグで回転 / ホイールでズーム / 右ドラッグで移動<br>
     住戸をクリックすると面積・坪単価・価格を表示<br>
     地形は国土地理院の標高タイルを参照して生成<br>
-    道路は桜田通り＋建物／東京タワー周辺の主要道路を地形上に表示
+    ※ 今回は道路表示を停止し、地形メッシュを細かく・滑らかに調整
   </div>
 
   <div id="legend">
@@ -42,7 +42,7 @@
     <div class="legend-row"><span>上限</span><span>2,300万円 / 専有坪</span></div>
     <div style="margin-top:8px;color:#475569;">
       東京タワー方向に近く、かつ高層になるほど高価格帯に設定。<br>
-      道路は2車線以上が明確な主要道路を太めに表現。
+      東京タワーは建物のほぼ真南、わずかに南南東寄りに配置。
     </div>
   </div>
 
@@ -51,10 +51,10 @@
   <div id="note">
     建物配置: 東京都港区虎ノ門4丁目3-13 付近 / 東京タワーを含む矩形 + 周囲200m の範囲で地形を生成<br>
     建物: 外周60m×70m / 外周から10m内側まで住戸 / 中央は空洞コア / 1フロア26戸<br>
-    表示追加: 方角（N/E/S/W） / 道路は桜田通りと主要道路を地形上で視認しやすく表示
+    表示追加: 方角（N/E/S/W） / 地形メッシュを前版より細かく・滑らかに補正
   </div>
 
-  <div id="loading">地形・道路データ読込中…（初回は数秒かかります）</div>
+  <div id="loading">地形データ読込中…（初回は数秒かかります）</div>
   <div id="errorBox"></div>
 
   <script type="module">
@@ -77,6 +77,7 @@
         const controlsModule = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js");
         const OrbitControls = controlsModule.OrbitControls;
 
+        // 建物基準位置（虎ノ門4丁目3-13）/ 東京タワー
         const BUILDING_LAT = 35.6637609;
         const BUILDING_LON = 139.7441716;
         const TOWER_LAT = 35.65861;
@@ -96,7 +97,7 @@
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.06;
-        controls.target.set(0, 100, 220);
+        controls.target.set(0, 110, -140);
         controls.maxDistance = 3800;
         controls.minDistance = 120;
 
@@ -116,8 +117,12 @@
         function degToRad(d) { return d * Math.PI / 180; }
         function metersPerDegLat() { return 111320; }
         function metersPerDegLon(lat) { return 111320 * Math.cos(degToRad(lat)); }
-        function latLonToLocal(lat, lon, originLat, originLon) { return { x: (lon - originLon) * metersPerDegLon(originLat), z: (lat - originLat) * metersPerDegLat() }; }
-        function localToLatLon(x, z, originLat, originLon) { return { lat: originLat + z / metersPerDegLat(), lon: originLon + x / metersPerDegLon(originLat) }; }
+        function latLonToLocal(lat, lon, originLat, originLon) {
+          return { x: (lon - originLon) * metersPerDegLon(originLat), z: (lat - originLat) * metersPerDegLat() };
+        }
+        function localToLatLon(x, z, originLat, originLon) {
+          return { lat: originLat + z / metersPerDegLat(), lon: originLon + x / metersPerDegLon(originLat) };
+        }
         function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
         function floorCenterY(floor, podiumH, typicalH) { return floor === 1 ? podiumH / 2 : podiumH + (floor - 2) * typicalH + typicalH / 2; }
         function webMercatorTile(lat, lon, z) {
@@ -157,10 +162,13 @@
           return decodeGsiElevation(data[idx], data[idx + 1], data[idx + 2]);
         }
 
+        // 実位置から東京タワーの方向を計算しつつ、表示は「ほぼ真南・少しだけ南南東」に寄せる
         const towerLocalActual = latLonToLocal(TOWER_LAT, TOWER_LON, BUILDING_LAT, BUILDING_LON);
         const towerDistanceActual = Math.hypot(towerLocalActual.x, towerLocalActual.z) || 1;
         const scaleTo590 = 590 / towerDistanceActual;
-        const towerLocal = { x: towerLocalActual.x * scaleTo590, z: towerLocalActual.z * scaleTo590 };
+        const actualScaled = { x: towerLocalActual.x * scaleTo590, z: towerLocalActual.z * scaleTo590 };
+        // 方向再確認のうえ、表示は「ほぼ真南、わずかに南南東」に補正
+        const towerLocal = { x: 92, z: -582 };
         const towerDirLen = Math.hypot(towerLocal.x, towerLocal.z) || 1;
         const towerDir = { x: towerLocal.x / towerDirLen, z: towerLocal.z / towerDirLen };
 
@@ -177,9 +185,14 @@
 
         const buildingGround = await getElevation(BUILDING_LAT, BUILDING_LON);
 
-        const TERRAIN_SEG_X = 78, TERRAIN_SEG_Z = 90;
-        const terrainGeo = new THREE.PlaneGeometry(terrainW, terrainD, TERRAIN_SEG_X, TERRAIN_SEG_Z); terrainGeo.rotateX(-Math.PI / 2);
+        // 地形メッシュを細かく + なめらかに
+        const TERRAIN_SEG_X = 120, TERRAIN_SEG_Z = 140;
+        const terrainGeo = new THREE.PlaneGeometry(terrainW, terrainD, TERRAIN_SEG_X, TERRAIN_SEG_Z);
+        terrainGeo.rotateX(-Math.PI / 2);
         const pos = terrainGeo.attributes.position;
+        const widthPts = TERRAIN_SEG_X + 1, depthPts = TERRAIN_SEG_Z + 1;
+        const heights = Array(pos.count).fill(0);
+
         const sampleJobs = [];
         for (let i = 0; i < pos.count; i++) {
           const vx = pos.getX(i) + terrainMinX + terrainW / 2;
@@ -188,14 +201,41 @@
           sampleJobs.push(getElevation(lat, lon).then(h => ({ i, h })));
         }
         const samples = await Promise.all(sampleJobs);
-        for (const s of samples) pos.setY(s.i, (s.h - buildingGround) * 1.6);
-        pos.needsUpdate = true; terrainGeo.computeVertexNormals();
-        const terrainMesh = new THREE.Mesh(terrainGeo, new THREE.MeshStandardMaterial({ color: 0xd7d7d2, roughness: 0.95, metalness: 0.02, side: THREE.DoubleSide }));
-        terrainMesh.position.set(terrainMinX + terrainW / 2, 0, terrainMinZ + terrainD / 2); scene.add(terrainMesh);
-        const terrainEdge = new THREE.LineSegments(new THREE.EdgesGeometry(terrainGeo), new THREE.LineBasicMaterial({ color: 0xc0c0b8 }));
-        terrainEdge.position.copy(terrainMesh.position); scene.add(terrainEdge);
+        for (const s of samples) heights[s.i] = (s.h - buildingGround) * 1.6;
 
-        const towerLatLonExact = localToLatLon(towerLocal.x, towerLocal.z, BUILDING_LAT, BUILDING_LON);
+        // 3回スムージング
+        for (let iter = 0; iter < 3; iter++) {
+          const smoothed = heights.slice();
+          for (let z = 0; z < depthPts; z++) {
+            for (let x = 0; x < widthPts; x++) {
+              const idx = z * widthPts + x;
+              let sum = heights[idx], n = 1;
+              if (x > 0) { sum += heights[idx - 1]; n++; }
+              if (x < widthPts - 1) { sum += heights[idx + 1]; n++; }
+              if (z > 0) { sum += heights[idx - widthPts]; n++; }
+              if (z < depthPts - 1) { sum += heights[idx + widthPts]; n++; }
+              if (x > 0 && z > 0) { sum += heights[idx - widthPts - 1]; n++; }
+              if (x < widthPts - 1 && z > 0) { sum += heights[idx - widthPts + 1]; n++; }
+              if (x > 0 && z < depthPts - 1) { sum += heights[idx + widthPts - 1]; n++; }
+              if (x < widthPts - 1 && z < depthPts - 1) { sum += heights[idx + widthPts + 1]; n++; }
+              smoothed[idx] = sum / n;
+            }
+          }
+          for (let i = 0; i < heights.length; i++) heights[i] = smoothed[i];
+        }
+
+        for (let i = 0; i < heights.length; i++) pos.setY(i, heights[i]);
+        pos.needsUpdate = true;
+        terrainGeo.computeVertexNormals();
+
+        const terrainMesh = new THREE.Mesh(
+          terrainGeo,
+          new THREE.MeshStandardMaterial({ color: 0xd7d7d2, roughness: 0.96, metalness: 0.02, side: THREE.DoubleSide })
+        );
+        terrainMesh.position.set(terrainMinX + terrainW / 2, 0, terrainMinZ + terrainD / 2);
+        scene.add(terrainMesh);
+
+        const towerLatLonExact = localToLatLon(actualScaled.x, actualScaled.z, BUILDING_LAT, BUILDING_LON);
         const towerGround = await getElevation(towerLatLonExact.lat, towerLatLonExact.lon);
         const buildingGroundY = 0, towerGroundY = (towerGround - buildingGround) * 1.6;
 
@@ -209,105 +249,6 @@
         }
         const compassDistance = Math.max(Math.abs(terrainMinX), Math.abs(terrainMaxX), Math.abs(terrainMinZ), Math.abs(terrainMaxZ)) - 40;
         [["N",0,compassDistance],["S",0,-compassDistance],["E",compassDistance,0],["W",-compassDistance,0]].forEach(([label,x,z])=>{const s=makeTextSprite(label);s.position.set(x,12,z);scene.add(s);});
-
-        async function fetchMajorRoads(bbox) {
-          const query = '[out:json][timeout:25];(' +
-            `way${bbox.south},${bbox.west},${bbox.north},${bbox.east};` +
-            `way${bbox.south},${bbox.west},${bbox.north},${bbox.east};` +
-            `way${bbox.south},${bbox.west},${bbox.north},${bbox.east};` +
-            ');out geom tags;';
-          const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: query });
-          if (!res.ok) throw new Error(`道路データ取得失敗: ${res.status}`);
-          return res.json();
-        }
-        function roadWidthFromTags(tags) {
-          const lanes = Number(tags.lanes || 0);
-          if (!Number.isNaN(lanes) && lanes >= 4) return 18;
-          if (!Number.isNaN(lanes) && lanes >= 2) return 11;
-          if ((tags.name || '').includes('桜田通り')) return 16;
-          if (tags.highway === 'trunk') return 16;
-          if (tags.highway === 'primary') return 13;
-          if (tags.highway === 'secondary') return 11;
-          if (tags.highway === 'tertiary') return 9;
-          return 8;
-        }
-        function roadColorFromTags(tags) {
-          if ((tags.name || '').includes('桜田通り')) return 0x374151;
-          if (tags.highway === 'trunk') return 0x3f3f46;
-          if (tags.highway === 'primary') return 0x4b5563;
-          return 0x5b6470;
-        }
-        async function samplePolylineElevations(pointsLL) {
-          const jobs = pointsLL.map(async pt => {
-            const local = latLonToLocal(pt.lat, pt.lon, BUILDING_LAT, BUILDING_LON);
-            const elev = await getElevation(pt.lat, pt.lon);
-            return new THREE.Vector3(local.x, (elev - buildingGround) * 1.6 + 0.35, local.z);
-          });
-          return Promise.all(jobs);
-        }
-        function addRoadFromCenterPoints(centerPoints, width, color, addCenterline = true) {
-          const roadGroup = new THREE.Group();
-          const centerLineGroup = new THREE.Group();
-          for (let i = 0; i < centerPoints.length - 1; i++) {
-            const a = centerPoints[i], b = centerPoints[i + 1];
-            const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz);
-            if (len < 0.5) continue;
-            const mid = new THREE.Vector3((a.x + b.x) / 2, Math.max(a.y, b.y) + 0.08, (a.z + b.z) / 2);
-            const roadMesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.28, width), new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0.02 }));
-            roadMesh.position.copy(mid); roadMesh.rotation.y = Math.atan2(dz, dx); roadGroup.add(roadMesh);
-            if (addCenterline && width >= 10) {
-              const lineMesh = new THREE.Mesh(new THREE.BoxGeometry(len * 0.985, 0.04, 0.28), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 1.0, metalness: 0.0 }));
-              lineMesh.position.set(mid.x, mid.y + 0.15, mid.z); lineMesh.rotation.y = roadMesh.rotation.y; centerLineGroup.add(lineMesh);
-            }
-          }
-          scene.add(roadGroup); scene.add(centerLineGroup);
-        }
-        async function buildRoads(roadsJson) {
-          const wayElements = (roadsJson.elements || []).filter(el => el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 2);
-          for (const way of wayElements) {
-            const width = roadWidthFromTags(way.tags || {}); const color = roadColorFromTags(way.tags || {});
-            const centerPoints = await samplePolylineElevations(way.geometry);
-            addRoadFromCenterPoints(centerPoints, width, color, true);
-          }
-        }
-        async function buildFallbackRoads() {
-          // 桜田通り（虎ノ門〜東京タワー周辺を通る見やすい太線）
-          const sakuradaPts = [
-            { x: 155, z: 260 }, { x: 145, z: 130 }, { x: 138, z: 0 }, { x: 128, z: -120 }, { x: 118, z: -260 }, { x: 108, z: -420 }, { x: 98, z: towerLocal.z + 40 }
-          ];
-          // 建物周辺の東西道路
-          const bldgRoad1 = [ { x: -260, z: 120 }, { x: -120, z: 115 }, { x: 40, z: 110 }, { x: 240, z: 105 } ];
-          const bldgRoad2 = [ { x: -250, z: -90 }, { x: -120, z: -85 }, { x: 40, z: -82 }, { x: 240, z: -78 } ];
-          // 東京タワー周辺道路
-          const towerRoad1 = [ { x: towerLocal.x - 180, z: towerLocal.z + 55 }, { x: towerLocal.x + 180, z: towerLocal.z + 55 } ];
-          const towerRoad2 = [ { x: towerLocal.x - 160, z: towerLocal.z - 65 }, { x: towerLocal.x + 150, z: towerLocal.z - 65 } ];
-          const towerRoad3 = [ { x: towerLocal.x + 70, z: towerLocal.z - 180 }, { x: towerLocal.x + 55, z: towerLocal.z + 180 } ];
-          const roads = [
-            { pts: sakuradaPts, width: 16, color: 0x374151 },
-            { pts: bldgRoad1, width: 11, color: 0x4b5563 },
-            { pts: bldgRoad2, width: 11, color: 0x4b5563 },
-            { pts: towerRoad1, width: 11, color: 0x4b5563 },
-            { pts: towerRoad2, width: 11, color: 0x4b5563 },
-            { pts: towerRoad3, width: 10, color: 0x5b6470 }
-          ];
-          for (const r of roads) {
-            const ll = r.pts.map(p => localToLatLon(p.x, p.z, BUILDING_LAT, BUILDING_LON));
-            const centerPoints = await samplePolylineElevations(ll);
-            addRoadFromCenterPoints(centerPoints, r.width, r.color, true);
-          }
-        }
-        const bboxSW = localToLatLon(terrainMinX, terrainMinZ, BUILDING_LAT, BUILDING_LON);
-        const bboxNE = localToLatLon(terrainMaxX, terrainMaxZ, BUILDING_LAT, BUILDING_LON);
-        const bbox = { south: Math.min(bboxSW.lat, bboxNE.lat), west: Math.min(bboxSW.lon, bboxNE.lon), north: Math.max(bboxSW.lat, bboxNE.lat), east: Math.max(bboxSW.lon, bboxNE.lon) };
-        let roadCount = 0;
-        try {
-          const roadsJson = await fetchMajorRoads(bbox);
-          roadCount = (roadsJson.elements || []).filter(el => el.type === 'way').length;
-          if (roadCount > 0) await buildRoads(roadsJson);
-        } catch (roadErr) {
-          console.warn('道路データの取得に失敗しました', roadErr);
-        }
-        if (roadCount === 0) await buildFallbackRoads();
 
         function calcTsuboPrice(floor, sideVector, indexDistanceFromCenter) {
           const floorRatio = (floor - 2) / (37 - 2);
