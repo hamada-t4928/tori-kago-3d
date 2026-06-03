@@ -50,6 +50,15 @@
       display: block;
     }
   </style>
+
+  <!-- ここが今回の修正ポイント -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
 </head>
 <body>
   <div id="info">
@@ -64,19 +73,16 @@
 
     function showError(message) {
       errorBox.style.display = "block";
-      errorBox.textContent = "JavaScriptエラーが発生しました:\\n\\n" + message;
+      errorBox.textContent = "JavaScriptエラーが発生しました:\n\n" + message;
       console.error(message);
     }
 
     try {
-      import("https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js")
+      import("three")
         .then(async (THREE) => {
           const controlsModule = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js");
           const OrbitControls = controlsModule.OrbitControls;
 
-          // -----------------------------
-          // 基本設定
-          // -----------------------------
           const scene = new THREE.Scene();
           scene.background = new THREE.Color(0xf3f4f6);
 
@@ -98,9 +104,6 @@
           controls.dampingFactor = 0.06;
           controls.target.set(0, 7, 0);
 
-          // -----------------------------
-          // ライト
-          // -----------------------------
           const ambient = new THREE.AmbientLight(0xffffff, 0.85);
           scene.add(ambient);
 
@@ -112,15 +115,9 @@
           light2.position.set(-15, 20, -10);
           scene.add(light2);
 
-          // -----------------------------
-          // グリッド
-          // -----------------------------
           const grid = new THREE.GridHelper(30, 30, 0xcbd5e1, 0xe5e7eb);
           scene.add(grid);
 
-          // -----------------------------
-          // 色設定
-          // -----------------------------
           function getColor(price, min, max) {
             const t = (price - min) / (max - min || 1);
             const color = new THREE.Color();
@@ -128,10 +125,6 @@
             return color;
           }
 
-          // -----------------------------
-          // サンプル条件
-          // 20階建 / 2階以上住宅
-          // -----------------------------
           const residentialFloors = [];
           for (let f = 2; f <= 20; f++) residentialFloors.push(f);
 
@@ -200,9 +193,6 @@
           const priceMin = Math.min(...units.map(u => u.priceOku));
           const priceMax = Math.max(...units.map(u => u.priceOku));
 
-          // -----------------------------
-          // ポディウム
-          // -----------------------------
           const podiumGeo = new THREE.BoxGeometry(22, 1.0, 5.2);
           const podiumMat = new THREE.MeshStandardMaterial({
             color: 0xb8c0cc,
@@ -221,9 +211,6 @@
           podiumLine.position.copy(podium.position);
           scene.add(podiumLine);
 
-          // -----------------------------
-          // 住戸ボックス
-          // -----------------------------
           units.forEach(u => {
             const geo = new THREE.BoxGeometry(u.w, u.h, u.d);
             const mat = new THREE.MeshStandardMaterial({
@@ -243,9 +230,6 @@
             scene.add(line);
           });
 
-          // -----------------------------
-          // アニメーション
-          // -----------------------------
           function animate() {
             requestAnimationFrame(animate);
             controls.update();
@@ -253,9 +237,6 @@
           }
           animate();
 
-          // -----------------------------
-          // リサイズ対応
-          // -----------------------------
           window.addEventListener("resize", () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -271,3 +252,4 @@
   </script>
 </body>
 </html>
+``
