@@ -43,9 +43,6 @@
     import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
     import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
 
-    // -----------------------------
-    // 基本設定
-    // -----------------------------
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf3f4f6);
 
@@ -67,9 +64,6 @@
     controls.dampingFactor = 0.06;
     controls.target.set(0, 7, 0);
 
-    // -----------------------------
-    // ライト
-    // -----------------------------
     const ambient = new THREE.AmbientLight(0xffffff, 0.85);
     scene.add(ambient);
 
@@ -81,15 +75,9 @@
     light2.position.set(-15, 20, -10);
     scene.add(light2);
 
-    // -----------------------------
-    // グリッド
-    // -----------------------------
     const grid = new THREE.GridHelper(30, 30, 0xcbd5e1, 0xe5e7eb);
     scene.add(grid);
 
-    // -----------------------------
-    // 色設定（価格で色を変える）
-    // -----------------------------
     function getColor(price, min, max) {
       const t = (price - min) / (max - min || 1);
       const color = new THREE.Color();
@@ -97,11 +85,6 @@
       return color;
     }
 
-    // -----------------------------
-    // サンプル条件
-    // 20階建 / 2階以上が住宅
-    // 外形は上層で少しセットバック
-    // -----------------------------
     const residentialFloors = [];
     for (let f = 2; f <= 20; f++) residentialFloors.push(f);
 
@@ -170,9 +153,6 @@
     const priceMin = Math.min(...units.map(u => u.priceOku));
     const priceMax = Math.max(...units.map(u => u.priceOku));
 
-    // -----------------------------
-    // 1階ポディウム
-    // -----------------------------
     const podiumGeo = new THREE.BoxGeometry(22, 1.0, 5.2);
     const podiumMat = new THREE.MeshStandardMaterial({
       color: 0xb8c0cc,
@@ -191,9 +171,6 @@
     podiumLine.position.copy(podium.position);
     scene.add(podiumLine);
 
-    // -----------------------------
-    // 住戸ボックス（建物外形の中を区分け）
-    // -----------------------------
     units.forEach(u => {
       const geo = new THREE.BoxGeometry(u.w, u.h, u.d);
       const mat = new THREE.MeshStandardMaterial({
@@ -213,9 +190,6 @@
       scene.add(line);
     });
 
-    // -----------------------------
-    // アニメーション
-    // -----------------------------
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
@@ -223,9 +197,6 @@
     }
     animate();
 
-    // -----------------------------
-    // リサイズ対応
-    // -----------------------------
     window.addEventListener("resize", () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
