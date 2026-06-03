@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Tori-kago Sample v10</title>
+  <title>3D Tori-kago Sample v11</title>
   <style>
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background: #f3f4f6; }
-    #info { position: absolute; top: 12px; left: 12px; background: rgba(255,255,255,0.94); padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.7; box-shadow: 0 2px 10px rgba(0,0,0,0.12); z-index: 10; min-width: 340px; max-width: 500px; }
-    #legend { position: absolute; right: 12px; top: 12px; width: 330px; background: rgba(255,255,255,0.94); padding: 12px 14px; border-radius: 10px; font-size: 12px; line-height: 1.7; box-shadow: 0 2px 10px rgba(0,0,0,0.12); z-index: 10; }
+    #info { position: absolute; top: 12px; left: 12px; background: rgba(255,255,255,0.94); padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.7; box-shadow: 0 2px 10px rgba(0,0,0,0.12); z-index: 10; min-width: 360px; max-width: 540px; }
+    #legend { position: absolute; right: 12px; top: 12px; width: 340px; background: rgba(255,255,255,0.94); padding: 12px 14px; border-radius: 10px; font-size: 12px; line-height: 1.7; box-shadow: 0 2px 10px rgba(0,0,0,0.12); z-index: 10; }
     .bar { margin-top: 8px; height: 16px; border-radius: 999px; background: linear-gradient(90deg, hsl(210 65% 58%), hsl(165 65% 58%), hsl(95 65% 58%), hsl(40 65% 58%), hsl(20 65% 58%)); border: 1px solid rgba(0,0,0,0.08); }
     .legend-row { display: flex; justify-content: space-between; margin-top: 5px; color: #334155; gap: 12px; }
     #popup { position: absolute; right: 12px; bottom: 12px; width: 320px; background: rgba(255,255,255,0.96); padding: 12px 14px; border-radius: 10px; font-size: 12px; line-height: 1.7; box-shadow: 0 2px 10px rgba(0,0,0,0.14); z-index: 12; display: none; color: #334155; }
     #popup h4 { margin: 0 0 6px 0; font-size: 14px; color: #0f172a; }
     #errorBox { position: absolute; top: 130px; left: 12px; right: 12px; background: rgba(220, 38, 38, 0.95); color: white; padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5; box-shadow: 0 2px 10px rgba(0,0,0,0.18); z-index: 20; display: none; white-space: pre-wrap; word-break: break-word; }
-    #note { position: absolute; left: 12px; bottom: 12px; background: rgba(255,255,255,0.92); padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.6; color: #334155; box-shadow: 0 2px 10px rgba(0,0,0,0.10); z-index: 10; max-width: 640px; }
+    #note { position: absolute; left: 12px; bottom: 12px; background: rgba(255,255,255,0.92); padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.6; color: #334155; box-shadow: 0 2px 10px rgba(0,0,0,0.10); z-index: 10; max-width: 760px; }
     #loading { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.95); padding: 14px 18px; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); z-index: 30; font-size: 14px; color: #0f172a; }
     canvas { display: block; }
   </style>
@@ -31,7 +31,7 @@
     ドラッグで回転 / ホイールでズーム / 右ドラッグで移動<br>
     住戸をクリックすると面積・坪単価・価格を表示<br>
     地形は国土地理院の標高タイルを参照して生成<br>
-    ※ 今回は道路表示を停止し、地形メッシュを細かく・滑らかに調整
+    航空写真は国土地理院のシームレス写真タイルを地形に貼付
   </div>
 
   <div id="legend">
@@ -51,10 +51,10 @@
   <div id="note">
     建物配置: 東京都港区虎ノ門4丁目3-13 付近 / 東京タワーを含む矩形 + 周囲200m の範囲で地形を生成<br>
     建物: 外周60m×70m / 外周から10m内側まで住戸 / 中央は空洞コア / 1フロア26戸<br>
-    表示追加: 方角（N/E/S/W） / 地形メッシュを前版より細かく・滑らかに補正
+    航空写真: 国土地理院「全国最新写真（シームレス）」を地形にドレープ表示 / 出典表記例: 国土地理院・地理院タイル
   </div>
 
-  <div id="loading">地形データ読込中…（初回は数秒かかります）</div>
+  <div id="loading">地形・航空写真データ読込中…（初回は数秒かかります）</div>
   <div id="errorBox"></div>
 
   <script type="module">
@@ -67,7 +67,9 @@
 
     function showError(message) {
       errorBox.style.display = "block";
-      errorBox.textContent = "JavaScriptエラーが発生しました:\n\n" + message;
+      errorBox.textContent = "JavaScriptエラーが発生しました:\
+\
+" + message;
       console.error(message);
       loading.style.display = "none";
     }
@@ -77,7 +79,6 @@
         const controlsModule = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js");
         const OrbitControls = controlsModule.OrbitControls;
 
-        // 建物基準位置（虎ノ門4丁目3-13）/ 東京タワー
         const BUILDING_LAT = 35.6637609;
         const BUILDING_LON = 139.7441716;
         const TOWER_LAT = 35.65861;
@@ -101,10 +102,9 @@
         controls.maxDistance = 3800;
         controls.minDistance = 120;
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.94));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.95));
         const light1 = new THREE.DirectionalLight(0xffffff, 0.85); light1.position.set(600, 800, 500); scene.add(light1);
-        const light2 = new THREE.DirectionalLight(0xffffff, 0.25); light2.position.set(-420, 280, -180); scene.add(light2);
-        scene.add(new THREE.GridHelper(2600, 130, 0xcbd5e1, 0xe5e7eb));
+        const light2 = new THREE.DirectionalLight(0xffffff, 0.2); light2.position.set(-420, 280, -180); scene.add(light2);
 
         const TSUBO_MIN = 1500, TSUBO_MAX = 2300;
         function colorFromTsuboUnit(tsuboPrice) {
@@ -130,11 +130,12 @@
           return { x: n * ((lon + 180) / 360), y: n * (1 - (Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI)) / 2 };
         }
 
+        // --- DEM ---
         const DEM_Z = 14;
-        const tileCache = new Map();
+        const demTileCache = new Map();
         async function fetchDemTile(x, y, z = DEM_Z) {
           const key = `${z}/${x}/${y}`;
-          if (tileCache.has(key)) return tileCache.get(key);
+          if (demTileCache.has(key)) return demTileCache.get(key);
           const promise = new Promise((resolve, reject) => {
             const img = new Image(); img.crossOrigin = "anonymous";
             img.onload = () => {
@@ -145,7 +146,7 @@
             img.onerror = reject;
             img.src = `https://cyberjapandata.gsi.go.jp/xyz/dem_png/${z}/${x}/${y}.png`;
           });
-          tileCache.set(key, promise); return promise;
+          demTileCache.set(key, promise); return promise;
         }
         function decodeGsiElevation(r, g, b) {
           if (r === 128 && g === 0 && b === 0) return 0;
@@ -162,12 +163,76 @@
           return decodeGsiElevation(data[idx], data[idx + 1], data[idx + 2]);
         }
 
-        // 実位置から東京タワーの方向を計算しつつ、表示は「ほぼ真南・少しだけ南南東」に寄せる
+        // --- PHOTO TILE (GSI seamlessphoto) ---
+        const PHOTO_Z = 17;
+        const photoTileCache = new Map();
+        async function fetchPhotoTile(x, y, z = PHOTO_Z) {
+          const key = `${z}/${x}/${y}`;
+          if (photoTileCache.has(key)) return photoTileCache.get(key);
+          const promise = new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = `https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/${z}/${x}/${y}.jpg`;
+          });
+          photoTileCache.set(key, promise);
+          return promise;
+        }
+
+        async function buildPhotoTexture(latNorth, lonWest, latSouth, lonEast) {
+          const pNW = webMercatorTile(latNorth, lonWest, PHOTO_Z);
+          const pSE = webMercatorTile(latSouth, lonEast, PHOTO_Z);
+
+          const tileMinX = Math.floor(Math.min(pNW.x, pSE.x));
+          const tileMaxX = Math.floor(Math.max(pNW.x, pSE.x));
+          const tileMinY = Math.floor(Math.min(pNW.y, pSE.y));
+          const tileMaxY = Math.floor(Math.max(pNW.y, pSE.y));
+
+          const tileCountX = tileMaxX - tileMinX + 1;
+          const tileCountY = tileMaxY - tileMinY + 1;
+
+          const canvas = document.createElement("canvas");
+          canvas.width = tileCountX * 256;
+          canvas.height = tileCountY * 256;
+          const ctx = canvas.getContext("2d");
+
+          for (let ty = tileMinY; ty <= tileMaxY; ty++) {
+            for (let tx = tileMinX; tx <= tileMaxX; tx++) {
+              try {
+                const img = await fetchPhotoTile(tx, ty, PHOTO_Z);
+                ctx.drawImage(img, (tx - tileMinX) * 256, (ty - tileMinY) * 256, 256, 256);
+              } catch (e) {
+                ctx.fillStyle = "#d8d8d8";
+                ctx.fillRect((tx - tileMinX) * 256, (ty - tileMinY) * 256, 256, 256);
+              }
+            }
+          }
+
+          const cropX = (pNW.x - tileMinX) * 256;
+          const cropY = (pNW.y - tileMinY) * 256;
+          const cropW = (pSE.x - pNW.x) * 256;
+          const cropH = (pSE.y - pNW.y) * 256;
+
+          const cropped = document.createElement("canvas");
+          cropped.width = Math.max(2, Math.round(cropW));
+          cropped.height = Math.max(2, Math.round(cropH));
+          const cctx = cropped.getContext("2d");
+          cctx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropped.width, cropped.height);
+
+          const texture = new THREE.CanvasTexture(cropped);
+          texture.needsUpdate = true;
+          texture.minFilter = THREE.LinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+          texture.colorSpace = THREE.SRGBColorSpace;
+          return texture;
+        }
+
+        // 実位置から東京タワー方向を算定しつつ、表示はほぼ真南・わずかに南南東へ補正
         const towerLocalActual = latLonToLocal(TOWER_LAT, TOWER_LON, BUILDING_LAT, BUILDING_LON);
         const towerDistanceActual = Math.hypot(towerLocalActual.x, towerLocalActual.z) || 1;
         const scaleTo590 = 590 / towerDistanceActual;
         const actualScaled = { x: towerLocalActual.x * scaleTo590, z: towerLocalActual.z * scaleTo590 };
-        // 方向再確認のうえ、表示は「ほぼ真南、わずかに南南東」に補正
         const towerLocal = { x: 92, z: -582 };
         const towerDirLen = Math.hypot(towerLocal.x, towerLocal.z) || 1;
         const towerDir = { x: towerLocal.x / towerDirLen, z: towerLocal.z / towerDirLen };
@@ -185,7 +250,6 @@
 
         const buildingGround = await getElevation(BUILDING_LAT, BUILDING_LON);
 
-        // 地形メッシュを細かく + なめらかに
         const TERRAIN_SEG_X = 120, TERRAIN_SEG_Z = 140;
         const terrainGeo = new THREE.PlaneGeometry(terrainW, terrainD, TERRAIN_SEG_X, TERRAIN_SEG_Z);
         terrainGeo.rotateX(-Math.PI / 2);
@@ -203,7 +267,6 @@
         const samples = await Promise.all(sampleJobs);
         for (const s of samples) heights[s.i] = (s.h - buildingGround) * 1.6;
 
-        // 3回スムージング
         for (let iter = 0; iter < 3; iter++) {
           const smoothed = heights.slice();
           for (let z = 0; z < depthPts; z++) {
@@ -228,9 +291,17 @@
         pos.needsUpdate = true;
         terrainGeo.computeVertexNormals();
 
+        const bboxSW = localToLatLon(terrainMinX, terrainMinZ, BUILDING_LAT, BUILDING_LON);
+        const bboxNE = localToLatLon(terrainMaxX, terrainMaxZ, BUILDING_LAT, BUILDING_LON);
+        const latNorth = Math.max(bboxSW.lat, bboxNE.lat);
+        const latSouth = Math.min(bboxSW.lat, bboxNE.lat);
+        const lonWest = Math.min(bboxSW.lon, bboxNE.lon);
+        const lonEast = Math.max(bboxSW.lon, bboxNE.lon);
+        const photoTexture = await buildPhotoTexture(latNorth, lonWest, latSouth, lonEast);
+
         const terrainMesh = new THREE.Mesh(
           terrainGeo,
-          new THREE.MeshStandardMaterial({ color: 0xd7d7d2, roughness: 0.96, metalness: 0.02, side: THREE.DoubleSide })
+          new THREE.MeshStandardMaterial({ map: photoTexture, roughness: 0.98, metalness: 0.0, side: THREE.DoubleSide })
         );
         terrainMesh.position.set(terrainMinX + terrainW / 2, 0, terrainMinZ + terrainD / 2);
         scene.add(terrainMesh);
@@ -267,81 +338,3 @@
           for (let idx = 0; idx < count; idx++) {
             const x = cursorX; cursorX += unitW + gapX;
             const areaM2 = +(unitW * blockDepth * 1.02).toFixed(1), areaTsubo = +(areaM2 / 3.305785).toFixed(1);
-            const distIdx = Math.abs(idx - (count - 1) / 2), tsuboPrice = calcTsuboPrice(floor, normalVec, distIdx), priceOku = +(areaTsubo * tsuboPrice / 10000).toFixed(2);
-            const roomNo = `${String(floor).padStart(2, '0')}${String(roomBase + idx).padStart(2, '0')}`;
-            row.push({ x, y, z, w: unitW, h: TYPICAL_H, d: blockDepth, floor, side: sideName, areaM2, areaTsubo, tsuboPrice, priceOku, roomNo });
-          } return row;
-        }
-        function makeVerticalRow(x, y, zCenter, blockWidth, totalDepth, floor, sideName, roomBase, normalVec) {
-          const row = [], count = 5, gapZ = 0.35, usableD = totalDepth - gapZ * (count - 1), unitD = usableD / count;
-          let cursorZ = zCenter - totalDepth / 2 + unitD / 2;
-          for (let idx = 0; idx < count; idx++) {
-            const z = cursorZ; cursorZ += unitD + gapZ;
-            const areaM2 = +(blockWidth * unitD * 1.02).toFixed(1), areaTsubo = +(areaM2 / 3.305785).toFixed(1);
-            const distIdx = Math.abs(idx - (count - 1) / 2), tsuboPrice = calcTsuboPrice(floor, normalVec, distIdx), priceOku = +(areaTsubo * tsuboPrice / 10000).toFixed(2);
-            const roomNo = `${String(floor).padStart(2, '0')}${String(roomBase + idx).padStart(2, '0')}`;
-            row.push({ x, y, z, w: blockWidth, h: TYPICAL_H, d: unitD, floor, side: sideName, areaM2, areaTsubo, tsuboPrice, priceOku, roomNo });
-          } return row;
-        }
-        const units = [];
-        residentialFloors.forEach(floor => {
-          const y = floorCenterY(floor, PODIUM_H, TYPICAL_H) + buildingGroundY;
-          const northZ = -(coreD / 2 + ringDepth / 2), southZ = +(coreD / 2 + ringDepth / 2), eastX = +(coreW / 2 + ringDepth / 2), westX = -(coreW / 2 + ringDepth / 2);
-          units.push(...makeHorizontalRow(y, northZ, outerW, ringDepth, floor, 'north', 1, { x: 0, z: -1 }));
-          units.push(...makeHorizontalRow(y, southZ, outerW, ringDepth, floor, 'south', 9, { x: 0, z: 1 }));
-          units.push(...makeVerticalRow(eastX, y, 0, ringDepth, coreD, floor, 'east', 17, { x: 1, z: 0 }));
-          units.push(...makeVerticalRow(westX, y, 0, ringDepth, coreD, floor, 'west', 22, { x: -1, z: 0 }));
-        });
-        avgLabel.textContent = Math.round(units.reduce((s, u) => s + u.tsuboPrice, 0) / units.length).toLocaleString() + '万円 / 専有坪';
-
-        const podium = new THREE.Mesh(new THREE.BoxGeometry(outerW + 6, PODIUM_H, outerD + 6), new THREE.MeshStandardMaterial({ color: 0xb8c0cc, transparent: true, opacity: 0.78 }));
-        podium.position.set(0, PODIUM_H / 2 + buildingGroundY, 0); scene.add(podium);
-        const podiumLine = new THREE.LineSegments(new THREE.EdgesGeometry(podium.geometry), new THREE.LineBasicMaterial({ color: 0x64748b })); podiumLine.position.copy(podium.position); scene.add(podiumLine);
-        const core = new THREE.Mesh(new THREE.BoxGeometry(coreW, buildingTotalHeight - PODIUM_H, coreD), new THREE.MeshStandardMaterial({ color: 0xd1d5db, transparent: true, opacity: 0.08 }));
-        core.position.set(0, PODIUM_H + (buildingTotalHeight - PODIUM_H) / 2 + buildingGroundY, 0); scene.add(core);
-        const coreLine = new THREE.LineSegments(new THREE.EdgesGeometry(core.geometry), new THREE.LineBasicMaterial({ color: 0x94a3b8 })); coreLine.position.copy(core.position); scene.add(coreLine);
-
-        const clickableMeshes = []; const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2(); let selectedOutline = null; const highlightMat = new THREE.LineBasicMaterial({ color: 0x0f172a });
-        units.forEach(u => {
-          const mesh = new THREE.Mesh(new THREE.BoxGeometry(u.w, u.h, u.d), new THREE.MeshStandardMaterial({ color: colorFromTsuboUnit(u.tsuboPrice) }));
-          mesh.position.set(u.x, u.y, u.z); mesh.userData = u; scene.add(mesh); clickableMeshes.push(mesh);
-          const line = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: 0x475569 })); line.position.copy(mesh.position); scene.add(line);
-        });
-        function showPopup(unit) {
-          popup.style.display = 'block'; popupTitle.textContent = `住戸 ${unit.roomNo}（${unit.floor}F / ${unit.side}側）`;
-          popupBody.innerHTML = `面積: <strong>${unit.areaM2.toLocaleString()}㎡</strong>（${unit.areaTsubo.toLocaleString()}坪）<br>坪単価: <strong>${unit.tsuboPrice.toLocaleString()}万円 / 坪</strong><br>価格: <strong>${unit.priceOku.toLocaleString()}億円</strong>`;
-        }
-        renderer.domElement.addEventListener('click', (event) => {
-          const rect = renderer.domElement.getBoundingClientRect(); mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1; mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-          raycaster.setFromCamera(mouse, camera); const intersects = raycaster.intersectObjects(clickableMeshes, false);
-          if (intersects.length > 0) { const picked = intersects[0].object, unit = picked.userData; showPopup(unit); if (selectedOutline) scene.remove(selectedOutline); selectedOutline = new THREE.LineSegments(new THREE.EdgesGeometry(picked.geometry), highlightMat); selectedOutline.position.copy(picked.position); scene.add(selectedOutline); }
-        });
-
-        function addSquareFrustum(group, bottomW, topW, height, yBase, color, edgeColor = 0x991b1b) {
-          const geo = new THREE.CylinderGeometry(topW / Math.SQRT2, bottomW / Math.SQRT2, height, 4, 1, false);
-          const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color })); mesh.rotation.y = Math.PI / 4; mesh.position.y = yBase + height / 2; group.add(mesh);
-          const line = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: edgeColor })); line.rotation.y = Math.PI / 4; line.position.copy(mesh.position); group.add(line);
-        }
-        function addSquareCylinder(group, width, height, yBase, color, edgeColor = 0x991b1b) { addSquareFrustum(group, width, width, height, yBase, color, edgeColor); }
-        const towerGroup = new THREE.Group(), towerRed = 0xdc2626, towerWhite = 0xffffff;
-        addSquareFrustum(towerGroup, 38, 14, 140, towerGroundY + 0, towerRed);
-        addSquareCylinder(towerGroup, 22, 16, towerGroundY + 140, towerRed);
-        for (let i = 0; i < 6; i++) addSquareFrustum(towerGroup, 13 - i * 0.4, 12.6 - i * 0.4, 12, towerGroundY + 156 + i * 12, i % 2 === 0 ? towerWhite : towerRed, i % 2 === 0 ? 0xdc2626 : 0x991b1b);
-        addSquareCylinder(towerGroup, 14, 14, towerGroundY + 228, towerRed);
-        for (let i = 0; i < 4; i++) addSquareFrustum(towerGroup, 8.6 - i * 0.6, 8.0 - i * 0.6, 10, towerGroundY + 242 + i * 10, i % 2 === 0 ? towerWhite : towerRed, i % 2 === 0 ? 0xdc2626 : 0x991b1b);
-        addSquareFrustum(towerGroup, 6.2, 6.0, 1, towerGroundY + 282, towerWhite, 0xdc2626);
-        const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.6, 50, 10), new THREE.MeshStandardMaterial({ color: towerWhite })); antenna.position.y = towerGroundY + 308; towerGroup.add(antenna);
-        const antennaLine = new THREE.LineSegments(new THREE.EdgesGeometry(antenna.geometry), new THREE.LineBasicMaterial({ color: 0xdc2626 })); antennaLine.position.copy(antenna.position); towerGroup.add(antennaLine);
-        towerGroup.position.set(towerLocal.x, 0, towerLocal.z); scene.add(towerGroup);
-        scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, buildingGroundY, 0), new THREE.Vector3(towerLocal.x, towerGroundY, towerLocal.z)]), new THREE.LineBasicMaterial({ color: 0xef4444 })));
-        const centerMarker = new THREE.Mesh(new THREE.SphereGeometry(3.2, 16, 16), new THREE.MeshStandardMaterial({ color: 0x2563eb })); centerMarker.position.set(0, buildingGroundY + 1.8, 0); scene.add(centerMarker);
-
-        loading.style.display = 'none';
-        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
-        animate();
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
-      }).catch(err => showError(err && err.stack ? err.stack : String(err)));
-    } catch (e) { showError(e && e.stack ? e.stack : String(e)); }
-  </script>
-</body>
-</html>
