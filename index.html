@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Tori-kago Sample v2</title>
+  <title>3D Tori-kago Sample v3</title>
   <style>
     html, body {
       margin: 0;
@@ -19,32 +19,33 @@
       position: absolute;
       top: 12px;
       left: 12px;
-      background: rgba(255,255,255,0.92);
-      padding: 10px 14px;
-      border-radius: 8px;
+      background: rgba(255,255,255,0.94);
+      padding: 12px 14px;
+      border-radius: 10px;
       font-size: 13px;
-      line-height: 1.6;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      line-height: 1.7;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
       z-index: 10;
+      min-width: 300px;
     }
 
     #legend {
       position: absolute;
       right: 12px;
       top: 12px;
-      width: 220px;
+      width: 260px;
       background: rgba(255,255,255,0.94);
       padding: 12px 14px;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 12px;
-      line-height: 1.6;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      line-height: 1.7;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
       z-index: 10;
     }
 
     .bar {
       margin-top: 8px;
-      height: 14px;
+      height: 16px;
       border-radius: 999px;
       background: linear-gradient(
         90deg,
@@ -60,8 +61,9 @@
     .legend-row {
       display: flex;
       justify-content: space-between;
-      margin-top: 4px;
+      margin-top: 5px;
       color: #334155;
+      gap: 12px;
     }
 
     #errorBox {
@@ -72,14 +74,28 @@
       background: rgba(220, 38, 38, 0.95);
       color: white;
       padding: 12px 14px;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 13px;
       line-height: 1.5;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
       z-index: 20;
       display: none;
       white-space: pre-wrap;
       word-break: break-word;
+    }
+
+    #note {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      background: rgba(255,255,255,0.90);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #334155;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+      z-index: 10;
     }
 
     canvas {
@@ -98,8 +114,7 @@
 <body>
   <div id="info">
     <strong>3D Tori-kago Sample</strong><br>
-    ドラッグで回転 / ホイールでズーム / 右ドラッグで移動<br>
-    ※ 左上の「,,」のように見える文字が出る場合は、このファイルに完全置換してください
+    ドラッグで回転 / ホイールでズーム / 右ドラッグで移動
   </div>
 
   <div id="legend">
@@ -111,6 +126,11 @@
     <div style="margin-top:8px;color:#475569;">
       低価格帯 = 青系 / 平均帯 = 緑系 / 高価格帯 = 橙〜赤系
     </div>
+  </div>
+
+  <div id="note">
+    対象建物: 37階建 / 1階6m / 2〜37階は各3.6m / ロの字型センターコア<br>
+    東京タワー: 建物中心から590m / 高さ333m（簡略表現）
   </div>
 
   <div id="errorBox"></div>
@@ -126,258 +146,318 @@
     }
 
     try {
-      import("three")
-        .then(async (THREE) => {
-          const controlsModule = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js");
-          const OrbitControls = controlsModule.OrbitControls;
+      import("three").then(async (THREE) => {
+        const controlsModule = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js");
+        const OrbitControls = controlsModule.OrbitControls;
 
-          const scene = new THREE.Scene();
-          scene.background = new THREE.Color(0xf3f4f6);
+        // -----------------------------
+        // 基本設定
+        // 実寸イメージに寄せて 1unit = 1m で表現
+        // -----------------------------
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf3f4f6);
 
-          const camera = new THREE.PerspectiveCamera(
-            60,
-            window.innerWidth / window.innerHeight,
-            0.1,
-            1000
-          );
-          camera.position.set(28, 24, 32);
+        const camera = new THREE.PerspectiveCamera(
+          55,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          4000
+        );
+        camera.position.set(420, 260, 780);
 
-          const renderer = new THREE.WebGLRenderer({ antialias: true });
-          renderer.setSize(window.innerWidth, window.innerHeight);
-          renderer.setPixelRatio(window.devicePixelRatio);
-          document.body.appendChild(renderer.domElement);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
 
-          const controls = new OrbitControls(camera, renderer.domElement);
-          controls.enableDamping = true;
-          controls.dampingFactor = 0.06;
-          controls.target.set(0, 8, 0);
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.target.set(0, 80, 0);
+        controls.maxDistance = 2200;
+        controls.minDistance = 120;
 
-          const ambient = new THREE.AmbientLight(0xffffff, 0.9);
-          scene.add(ambient);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.95);
+        scene.add(ambient);
 
-          const light1 = new THREE.DirectionalLight(0xffffff, 0.8);
-          light1.position.set(30, 40, 15);
-          scene.add(light1);
+        const light1 = new THREE.DirectionalLight(0xffffff, 0.85);
+        light1.position.set(400, 650, 250);
+        scene.add(light1);
 
-          const light2 = new THREE.DirectionalLight(0xffffff, 0.35);
-          light2.position.set(-25, 20, -18);
-          scene.add(light2);
+        const light2 = new THREE.DirectionalLight(0xffffff, 0.35);
+        light2.position.set(-380, 260, -220);
+        scene.add(light2);
 
-          const grid = new THREE.GridHelper(42, 42, 0xcbd5e1, 0xe5e7eb);
-          scene.add(grid);
+        const grid = new THREE.GridHelper(1800, 90, 0xcbd5e1, 0xe5e7eb);
+        scene.add(grid);
 
-          // -----------------------------
-          // 坪単価設定
-          // 下限 1,500万円/坪
-          // 上限 2,300万円/坪
-          // -----------------------------
-          const TSUBO_MIN = 1500;
-          const TSUBO_MAX = 2300;
+        // -----------------------------
+        // 坪単価設定
+        // -----------------------------
+        const TSUBO_MIN = 1500;
+        const TSUBO_MAX = 2300;
 
-          function colorFromTsuboUnit(tsuboPrice) {
-            const t = (tsuboPrice - TSUBO_MIN) / (TSUBO_MAX - TSUBO_MIN || 1);
-            const color = new THREE.Color();
-            color.setHSL(0.58 - 0.52 * t, 0.60, 0.58);
-            return color;
-          }
+        function colorFromTsuboUnit(tsuboPrice) {
+          const t = (tsuboPrice - TSUBO_MIN) / (TSUBO_MAX - TSUBO_MIN || 1);
+          const color = new THREE.Color();
+          color.setHSL(0.58 - 0.52 * t, 0.60, 0.58);
+          return color;
+        }
 
-          // -----------------------------
-          // ロの字型住戸配置（センターコア）
-          // 20階建、2F〜20F住宅
-          // 中央は空洞（コア）
-          // -----------------------------
-          const residentialFloors = [];
-          for (let f = 2; f <= 20; f++) residentialFloors.push(f);
+        // -----------------------------
+        // 建物条件
+        // 37階建
+        // 1階 6m、2〜37階 各3.6m
+        // ロの字型（セットバック無し）
+        // -----------------------------
+        const TOTAL_FLOORS = 37;
+        const RES_START = 2;
+        const RES_END = 37;
+        const PODIUM_H = 6.0;
+        const TYPICAL_H = 3.6;
 
-          const floorHeight = 0.9;
-          const outerWBase = 17.6;
-          const outerDBase = 13.2;
-          const coreW = 5.8;
-          const coreD = 4.4;
-          const unitDepth = 2.1; // リング厚み
+        const residentialFloors = [];
+        for (let f = RES_START; f <= RES_END; f++) residentialFloors.push(f);
 
-          function setbackForFloor(f) {
-            if (f >= 18) return 0.9;
-            if (f >= 15) return 0.45;
-            if (f >= 10) return 0.2;
-            return 0;
-          }
+        const buildingTotalHeight = PODIUM_H + (TOTAL_FLOORS - 1) * TYPICAL_H; // 135.6m
 
-          function makeHorizontalRow(y, z, totalWidth, blockDepth, floor, side, outerD) {
-            const units = [];
-            const widths = [2.0, 2.35, 2.5, 2.65, 2.5, 2.35, 2.0];
-            const gapX = 0.08;
-            const sumW = widths.reduce((a, b) => a + b, 0) + gapX * (widths.length - 1);
-            const scale = totalWidth / sumW;
-            const scaled = widths.map(w => w * scale);
-            const totalScaled = scaled.reduce((a, b) => a + b, 0) + gapX * (scaled.length - 1);
-            let cursorX = -totalScaled / 2;
+        const outerW = 54.0;
+        const outerD = 42.0;
+        const coreW = 18.0;
+        const coreD = 14.0;
+        const ringDepth = 6.0;
 
-            scaled.forEach((w, idx) => {
-              const x = cursorX + w / 2;
-              cursorX += w + gapX;
-              const areaTsuboBase = (w * blockDepth) * 1.45;
-              const areaTsubo = +(areaTsuboBase + (idx % 2 === 0 ? 0.6 : -0.2)).toFixed(1);
-              const areaM2 = +(areaTsubo * 3.305785).toFixed(1);
-              const floorPremium = (floor - 2) / 18;
-              const centerPenalty = Math.abs(idx - 3) * 28;
-              const sidePremium = (side === 'south' ? 90 : side === 'north' ? 20 : 55);
-              const topPremium = floor >= 18 ? 70 : floor >= 15 ? 35 : 0;
-              let tsuboPrice = TSUBO_MIN + 420 * floorPremium + sidePremium - centerPenalty + topPremium;
-              tsuboPrice = Math.max(TSUBO_MIN, Math.min(TSUBO_MAX, Math.round(tsuboPrice)));
-              units.push({
-                x, y, z,
-                w, h: floorHeight, d: blockDepth,
-                floor, side,
-                areaTsubo,
-                areaM2,
-                tsuboPrice,
-              });
-            });
-            return units;
-          }
+        // 東京タワー方向 = 南側（+Z方向）
+        const TOKYO_TOWER_DISTANCE = 590.0;
+        const TOKYO_TOWER_HEIGHT = 333.0;
+        const towerBase = new THREE.Vector3(0, 0, TOKYO_TOWER_DISTANCE);
 
-          function makeVerticalRow(x, y, zCenter, blockWidth, totalDepth, floor, side) {
-            const units = [];
-            const depths = [1.9, 2.25, 2.45, 2.25, 1.9];
-            const gapZ = 0.08;
-            const sumD = depths.reduce((a, b) => a + b, 0) + gapZ * (depths.length - 1);
-            const scale = totalDepth / sumD;
-            const scaled = depths.map(d => d * scale);
-            const totalScaled = scaled.reduce((a, b) => a + b, 0) + gapZ * (scaled.length - 1);
-            let cursorZ = zCenter - totalScaled / 2;
+        function floorCenterY(floor) {
+          if (floor === 1) return PODIUM_H / 2;
+          return PODIUM_H + (floor - 2) * TYPICAL_H + TYPICAL_H / 2;
+        }
 
-            scaled.forEach((d, idx) => {
-              const z = cursorZ + d / 2;
-              cursorZ += d + gapZ;
-              const areaTsuboBase = (blockWidth * d) * 1.55;
-              const areaTsubo = +(areaTsuboBase + (idx % 2 === 0 ? 0.3 : -0.1)).toFixed(1);
-              const areaM2 = +(areaTsubo * 3.305785).toFixed(1);
-              const floorPremium = (floor - 2) / 18;
-              const centerPenalty = Math.abs(idx - 2) * 24;
-              const sidePremium = (side === 'east' ? 65 : 70);
-              const topPremium = floor >= 18 ? 70 : floor >= 15 ? 35 : 0;
-              let tsuboPrice = TSUBO_MIN + 420 * floorPremium + sidePremium - centerPenalty + topPremium;
-              tsuboPrice = Math.max(TSUBO_MIN, Math.min(TSUBO_MAX, Math.round(tsuboPrice)));
-              units.push({
-                x, y, z,
-                w: blockWidth, h: floorHeight, d,
-                floor, side,
-                areaTsubo,
-                areaM2,
-                tsuboPrice,
-              });
-            });
-            return units;
-          }
+        function makeHorizontalRow(y, z, totalWidth, blockDepth, floor, side) {
+          const row = [];
+          const widths = [5.4, 6.0, 6.6, 7.0, 6.6, 6.0, 5.4];
+          const gapX = 0.4;
+          const sumW = widths.reduce((a, b) => a + b, 0) + gapX * (widths.length - 1);
+          const scale = totalWidth / sumW;
+          const scaled = widths.map(w => w * scale);
+          const totalScaled = scaled.reduce((a, b) => a + b, 0) + gapX * (scaled.length - 1);
+          let cursorX = -totalScaled / 2;
 
-          const units = [];
+          scaled.forEach((w, idx) => {
+            const x = cursorX + w / 2;
+            cursorX += w + gapX;
 
-          residentialFloors.forEach(floor => {
-            const setback = setbackForFloor(floor);
-            const outerW = outerWBase - setback;
-            const outerD = outerDBase - setback * 0.75;
-            const ringInnerW = coreW;
-            const ringInnerD = coreD;
-            const y = (floor - 2) * floorHeight + 1.05;
+            const areaM2Base = w * blockDepth * 1.85;
+            const areaM2 = +(areaM2Base + (idx % 2 === 0 ? 2.0 : -1.2)).toFixed(1);
+            const areaTsubo = +(areaM2 / 3.305785).toFixed(1);
 
-            const northZ = -(ringInnerD / 2 + unitDepth / 2);
-            const southZ = +(ringInnerD / 2 + unitDepth / 2);
-            const eastX = +(ringInnerW / 2 + unitDepth / 2);
-            const westX = -(ringInnerW / 2 + unitDepth / 2);
+            const floorPremium = (floor - RES_START) / (RES_END - RES_START);
+            const centerPenalty = Math.abs(idx - 3) * 22;
+            const viewPremium = side === "south" ? 140 : side === "north" ? 30 : 65; // 東京タワーは南側
+            const topPremium = floor >= 30 ? 70 : floor >= 20 ? 35 : 0;
 
-            const horizontalSpan = outerW;
-            const verticalSpan = outerD - unitDepth * 2.0 - 0.5;
+            let tsuboPrice = TSUBO_MIN + 430 * floorPremium + viewPremium - centerPenalty + topPremium;
+            tsuboPrice = Math.max(TSUBO_MIN, Math.min(TSUBO_MAX, Math.round(tsuboPrice)));
 
-            units.push(...makeHorizontalRow(y, northZ, horizontalSpan, unitDepth, floor, 'north', outerD));
-            units.push(...makeHorizontalRow(y, southZ, horizontalSpan, unitDepth, floor, 'south', outerD));
-            units.push(...makeVerticalRow(eastX, y, 0, unitDepth, verticalSpan, floor, 'east'));
-            units.push(...makeVerticalRow(westX, y, 0, unitDepth, verticalSpan, floor, 'west'));
+            row.push({ x, y, z, w, h: TYPICAL_H, d: blockDepth, floor, side, areaM2, areaTsubo, tsuboPrice });
           });
+          return row;
+        }
 
-          const avgTsubo = Math.round(units.reduce((s, u) => s + u.tsuboPrice, 0) / units.length);
-          avgLabel.textContent = avgTsubo.toLocaleString() + "万円 / 専有坪";
+        function makeVerticalRow(x, y, zCenter, blockWidth, totalDepth, floor, side) {
+          const row = [];
+          const depths = [5.0, 5.8, 6.2, 5.8, 5.0];
+          const gapZ = 0.4;
+          const sumD = depths.reduce((a, b) => a + b, 0) + gapZ * (depths.length - 1);
+          const scale = totalDepth / sumD;
+          const scaled = depths.map(d => d * scale);
+          const totalScaled = scaled.reduce((a, b) => a + b, 0) + gapZ * (scaled.length - 1);
+          let cursorZ = zCenter - totalScaled / 2;
 
-          // -----------------------------
-          // 1階ポディウム
-          // -----------------------------
-          const podiumGeo = new THREE.BoxGeometry(outerWBase + 2.4, 1.0, outerDBase + 2.2);
-          const podiumMat = new THREE.MeshStandardMaterial({
-            color: 0xb8c0cc,
-            transparent: true,
-            opacity: 0.7
+          scaled.forEach((d, idx) => {
+            const z = cursorZ + d / 2;
+            cursorZ += d + gapZ;
+
+            const areaM2Base = blockWidth * d * 1.95;
+            const areaM2 = +(areaM2Base + (idx % 2 === 0 ? 1.5 : -0.8)).toFixed(1);
+            const areaTsubo = +(areaM2 / 3.305785).toFixed(1);
+
+            const floorPremium = (floor - RES_START) / (RES_END - RES_START);
+            const centerPenalty = Math.abs(idx - 2) * 18;
+            const sidePremium = side === "east" ? 78 : 82;
+            const topPremium = floor >= 30 ? 70 : floor >= 20 ? 35 : 0;
+
+            let tsuboPrice = TSUBO_MIN + 430 * floorPremium + sidePremium - centerPenalty + topPremium;
+            tsuboPrice = Math.max(TSUBO_MIN, Math.min(TSUBO_MAX, Math.round(tsuboPrice)));
+
+            row.push({ x, y, z, w: blockWidth, h: TYPICAL_H, d, floor, side, areaM2, areaTsubo, tsuboPrice });
           });
-          const podium = new THREE.Mesh(podiumGeo, podiumMat);
-          podium.position.set(0, 0.5, 0);
-          scene.add(podium);
+          return row;
+        }
 
-          const podiumEdges = new THREE.EdgesGeometry(podiumGeo);
-          const podiumLine = new THREE.LineSegments(
-            podiumEdges,
-            new THREE.LineBasicMaterial({ color: 0x64748b })
-          );
-          podiumLine.position.copy(podium.position);
-          scene.add(podiumLine);
+        const units = [];
 
-          // -----------------------------
-          // センターコア（見えるように薄灰色で表示）
-          // -----------------------------
-          const coreGeo = new THREE.BoxGeometry(coreW, residentialFloors.length * floorHeight, coreD);
-          const coreMat = new THREE.MeshStandardMaterial({
-            color: 0xd1d5db,
-            transparent: true,
-            opacity: 0.45
-          });
-          const core = new THREE.Mesh(coreGeo, coreMat);
-          core.position.set(0, 1.05 + (residentialFloors.length * floorHeight) / 2 - floorHeight / 2, 0);
-          scene.add(core);
+        residentialFloors.forEach(floor => {
+          const y = floorCenterY(floor);
+          const northZ = -(coreD / 2 + ringDepth / 2);
+          const southZ = +(coreD / 2 + ringDepth / 2);
+          const eastX = +(coreW / 2 + ringDepth / 2);
+          const westX = -(coreW / 2 + ringDepth / 2);
 
-          const coreEdges = new THREE.EdgesGeometry(coreGeo);
-          const coreLine = new THREE.LineSegments(
-            coreEdges,
-            new THREE.LineBasicMaterial({ color: 0x94a3b8 })
-          );
-          coreLine.position.copy(core.position);
-          scene.add(coreLine);
+          const horizontalSpan = outerW;
+          const verticalSpan = outerD - ringDepth * 2.0 - 1.0;
 
-          // -----------------------------
-          // 住戸ボックス
-          // -----------------------------
-          units.forEach(u => {
-            const geo = new THREE.BoxGeometry(u.w, u.h, u.d);
-            const mat = new THREE.MeshStandardMaterial({
-              color: colorFromTsuboUnit(u.tsuboPrice)
-            });
-
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(u.x, u.y, u.z);
-            scene.add(mesh);
-
-            const edges = new THREE.EdgesGeometry(geo);
-            const line = new THREE.LineSegments(
-              edges,
-              new THREE.LineBasicMaterial({ color: 0x4b5563 })
-            );
-            line.position.copy(mesh.position);
-            scene.add(line);
-          });
-
-          function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-          }
-          animate();
-
-          window.addEventListener("resize", () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-          });
-        })
-        .catch(err => {
-          showError(err && err.stack ? err.stack : String(err));
+          units.push(...makeHorizontalRow(y, northZ, horizontalSpan, ringDepth, floor, "north"));
+          units.push(...makeHorizontalRow(y, southZ, horizontalSpan, ringDepth, floor, "south"));
+          units.push(...makeVerticalRow(eastX, y, 0, ringDepth, verticalSpan, floor, "east"));
+          units.push(...makeVerticalRow(westX, y, 0, ringDepth, verticalSpan, floor, "west"));
         });
+
+        const avgTsubo = Math.round(units.reduce((s, u) => s + u.tsuboPrice, 0) / units.length);
+        avgLabel.textContent = avgTsubo.toLocaleString() + "万円 / 専有坪";
+
+        // -----------------------------
+        // 1階ポディウム
+        // -----------------------------
+        const podiumGeo = new THREE.BoxGeometry(outerW + 4, PODIUM_H, outerD + 4);
+        const podiumMat = new THREE.MeshStandardMaterial({
+          color: 0xb8c0cc,
+          transparent: true,
+          opacity: 0.78
+        });
+        const podium = new THREE.Mesh(podiumGeo, podiumMat);
+        podium.position.set(0, PODIUM_H / 2, 0);
+        scene.add(podium);
+
+        const podiumEdges = new THREE.EdgesGeometry(podiumGeo);
+        const podiumLine = new THREE.LineSegments(
+          podiumEdges,
+          new THREE.LineBasicMaterial({ color: 0x64748b })
+        );
+        podiumLine.position.copy(podium.position);
+        scene.add(podiumLine);
+
+        // -----------------------------
+        // センターコア
+        // -----------------------------
+        const coreGeo = new THREE.BoxGeometry(coreW, buildingTotalHeight - PODIUM_H, coreD);
+        const coreMat = new THREE.MeshStandardMaterial({
+          color: 0xd1d5db,
+          transparent: true,
+          opacity: 0.38
+        });
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        core.position.set(0, PODIUM_H + (buildingTotalHeight - PODIUM_H) / 2, 0);
+        scene.add(core);
+
+        const coreEdges = new THREE.EdgesGeometry(coreGeo);
+        const coreLine = new THREE.LineSegments(
+          coreEdges,
+          new THREE.LineBasicMaterial({ color: 0x94a3b8 })
+        );
+        coreLine.position.copy(core.position);
+        scene.add(coreLine);
+
+        // -----------------------------
+        // 住戸ボックス
+        // -----------------------------
+        units.forEach(u => {
+          const geo = new THREE.BoxGeometry(u.w, u.h, u.d);
+          const mat = new THREE.MeshStandardMaterial({
+            color: colorFromTsuboUnit(u.tsuboPrice)
+          });
+
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.position.set(u.x, u.y, u.z);
+          scene.add(mesh);
+
+          const edges = new THREE.EdgesGeometry(geo);
+          const line = new THREE.LineSegments(
+            edges,
+            new THREE.LineBasicMaterial({ color: 0x475569 })
+          );
+          line.position.copy(mesh.position);
+          scene.add(line);
+        });
+
+        // -----------------------------
+        // 東京タワー（簡略モデル）
+        // 高さ333m、建物中心から590m
+        // -----------------------------
+        const towerGroup = new THREE.Group();
+
+        const towerBaseMat = new THREE.MeshStandardMaterial({ color: 0xf97316 });
+        const towerWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc });
+        const deckMat = new THREE.MeshStandardMaterial({ color: 0xfde68a });
+
+        // 下部テーパー
+        const lowerGeo = new THREE.CylinderGeometry(36, 14, 170, 8);
+        const lower = new THREE.Mesh(lowerGeo, towerBaseMat);
+        lower.position.y = 85;
+        towerGroup.add(lower);
+
+        // 中部シャフト
+        const upperGeo = new THREE.CylinderGeometry(14, 5.5, 120, 8);
+        const upper = new THREE.Mesh(upperGeo, towerWhiteMat);
+        upper.position.y = 170 + 60;
+        towerGroup.add(upper);
+
+        // メインデッキ
+        const mainDeckGeo = new THREE.CylinderGeometry(24, 24, 14, 24);
+        const mainDeck = new THREE.Mesh(mainDeckGeo, deckMat);
+        mainDeck.position.y = 150;
+        towerGroup.add(mainDeck);
+
+        // トップデッキ
+        const topDeckGeo = new THREE.CylinderGeometry(14, 14, 10, 24);
+        const topDeck = new THREE.Mesh(topDeckGeo, deckMat);
+        topDeck.position.y = 250;
+        towerGroup.add(topDeck);
+
+        // アンテナ
+        const antennaGeo = new THREE.CylinderGeometry(2.2, 0.8, 39, 12);
+        const antenna = new THREE.Mesh(antennaGeo, towerWhiteMat);
+        antenna.position.y = 313.5;
+        towerGroup.add(antenna);
+
+        towerGroup.position.copy(towerBase);
+        scene.add(towerGroup);
+
+        // 東京タワーのラベル
+        const towerLineMat = new THREE.LineBasicMaterial({ color: 0xef4444 });
+        const towerGuide = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(0, 0, TOKYO_TOWER_DISTANCE)
+        ]);
+        const guideLine = new THREE.Line(towerGuide, towerLineMat);
+        scene.add(guideLine);
+
+        // 建物中心点マーカー
+        const centerMarkerGeo = new THREE.SphereGeometry(3.2, 16, 16);
+        const centerMarkerMat = new THREE.MeshStandardMaterial({ color: 0x2563eb });
+        const centerMarker = new THREE.Mesh(centerMarkerGeo, centerMarkerMat);
+        centerMarker.position.set(0, 1.8, 0);
+        scene.add(centerMarker);
+
+        function animate() {
+          requestAnimationFrame(animate);
+          controls.update();
+          renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener("resize", () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+      }).catch(err => {
+        showError(err && err.stack ? err.stack : String(err));
+      });
     } catch (e) {
       showError(e && e.stack ? e.stack : String(e));
     }
