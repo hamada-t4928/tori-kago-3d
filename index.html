@@ -1,85 +1,347 @@
-<!-- 軽量版：地形と航空写真を高速化 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>Tori-kago v12 light</title>
-<style>
-body{margin:0;overflow:hidden;background:#f3f4f6;font-family:sans-serif}
-#loading{position:absolute;top:20px;left:20px;background:white;padding:10px;border-radius:8px}
-</style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Tori-kago Sample v10</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background: #f3f4f6; }
+    #info { position: absolute; top: 12px; left: 12px; background: rgba(255,255,255,0.94); padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.7; box-shadow: 0 2px 10px rgba(0,0,0,0.12); z-index: 10; min-width: 340px; max-width: 500px; }
+    #legend { position: absolute; right: 12px; top: 12px; width: 330px; background: rgba(255,255,255,0.94); padding: 12px 14px; border-radius: 10px; font-size: 12px; line-height: 1.7; box-shadow: 0 2px 10px rgba(0,0,0,0.12); z-index: 10; }
+    .bar { margin-top: 8px; height: 16px; border-radius: 999px; background: linear-gradient(90deg, hsl(210 65% 58%), hsl(165 65% 58%), hsl(95 65% 58%), hsl(40 65% 58%), hsl(20 65% 58%)); border: 1px solid rgba(0,0,0,0.08); }
+    .legend-row { display: flex; justify-content: space-between; margin-top: 5px; color: #334155; gap: 12px; }
+    #popup { position: absolute; right: 12px; bottom: 12px; width: 320px; background: rgba(255,255,255,0.96); padding: 12px 14px; border-radius: 10px; font-size: 12px; line-height: 1.7; box-shadow: 0 2px 10px rgba(0,0,0,0.14); z-index: 12; display: none; color: #334155; }
+    #popup h4 { margin: 0 0 6px 0; font-size: 14px; color: #0f172a; }
+    #errorBox { position: absolute; top: 130px; left: 12px; right: 12px; background: rgba(220, 38, 38, 0.95); color: white; padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5; box-shadow: 0 2px 10px rgba(0,0,0,0.18); z-index: 20; display: none; white-space: pre-wrap; word-break: break-word; }
+    #note { position: absolute; left: 12px; bottom: 12px; background: rgba(255,255,255,0.92); padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.6; color: #334155; box-shadow: 0 2px 10px rgba(0,0,0,0.10); z-index: 10; max-width: 640px; }
+    #loading { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.95); padding: 14px 18px; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); z-index: 30; font-size: 14px; color: #0f172a; }
+    canvas { display: block; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
 </head>
 <body>
-<div id="loading">軽量モード読込中...</div>
-<script type="module">
-import * as THREE from "three";
-import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+  <div id="info">
+    <strong>3D Tori-kago Sample</strong><br>
+    ドラッグで回転 / ホイールでズーム / 右ドラッグで移動<br>
+    住戸をクリックすると面積・坪単価・価格を表示<br>
+    地形は国土地理院の標高タイルを参照して生成<br>
+    ※ 今回は道路表示を停止し、地形メッシュを細かく・滑らかに調整
+  </div>
 
-const scene=new THREE.Scene();
-const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,5000);
-camera.position.set(500,400,800);
+  <div id="legend">
+    <strong>ヒートマップ凡例（専有坪単価）</strong>
+    <div class="bar"></div>
+    <div class="legend-row"><span>下限</span><span>1,500万円 / 専有坪</span></div>
+    <div class="legend-row"><span>平均</span><span id="avgTsuboPrice">計算中...</span></div>
+    <div class="legend-row"><span>上限</span><span>2,300万円 / 専有坪</span></div>
+    <div style="margin-top:8px;color:#475569;">
+      東京タワー方向に近く、かつ高層になるほど高価格帯に設定。<br>
+      東京タワーは建物のほぼ真南、わずかに南南東寄りに配置。
+    </div>
+  </div>
 
-const renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth,innerHeight);
-document.body.appendChild(renderer.domElement);
+  <div id="popup"><h4 id="popupTitle">住戸情報</h4><div id="popupBody"></div></div>
 
-const controls=new OrbitControls(camera,renderer.domElement);
-controls.enableDamping=true;
+  <div id="note">
+    建物配置: 東京都港区虎ノ門4丁目3-13 付近 / 東京タワーを含む矩形 + 周囲200m の範囲で地形を生成<br>
+    建物: 外周60m×70m / 外周から10m内側まで住戸 / 中央は空洞コア / 1フロア26戸<br>
+    表示追加: 方角（N/E/S/W） / 地形メッシュを前版より細かく・滑らかに補正
+  </div>
 
-scene.add(new THREE.AmbientLight(0xffffff,1));
+  <div id="loading">地形データ読込中…（初回は数秒かかります）</div>
+  <div id="errorBox"></div>
 
-// 地形（軽量：分割を大幅削減）
-const geo=new THREE.PlaneGeometry(1200,1200,40,40);
-geo.rotateX(-Math.PI/2);
+  <script type="module">
+    const errorBox = document.getElementById("errorBox");
+    const avgLabel = document.getElementById("avgTsuboPrice");
+    const popup = document.getElementById("popup");
+    const popupTitle = document.getElementById("popupTitle");
+    const popupBody = document.getElementById("popupBody");
+    const loading = document.getElementById("loading");
 
-// 擬似標高（簡易ノイズ）
-const pos=geo.attributes.position;
-for(let i=0;i<pos.count;i++){
-  const x=pos.getX(i);
-  const z=pos.getZ(i);
-  const h=Math.sin(x*0.005)*5+Math.cos(z*0.005)*5;
-  pos.setY(i,h);
-}
+    function showError(message) {
+      errorBox.style.display = "block";
+      errorBox.textContent = "JavaScriptエラーが発生しました:\n\n" + message;
+      console.error(message);
+      loading.style.display = "none";
+    }
 
-geo.computeVertexNormals();
+    try {
+      import("three").then(async (THREE) => {
+        const controlsModule = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js");
+        const OrbitControls = controlsModule.OrbitControls;
 
-// 軽量テクスチャ（1枚だけ取得）
-const tex=new THREE.TextureLoader().load("https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/15/29105/12902.jpg",render);
+        // 建物基準位置（虎ノ門4丁目3-13）/ 東京タワー
+        const BUILDING_LAT = 35.6637609;
+        const BUILDING_LON = 139.7441716;
+        const TOWER_LAT = 35.65861;
+        const TOWER_LON = 139.74556;
 
-const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({map:tex}));
-scene.add(mesh);
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf3f4f6);
 
-// 建物
-const building=new THREE.Mesh(
-  new THREE.BoxGeometry(60,130,70),
-  new THREE.MeshStandardMaterial({color:0x60a5fa})
-);
-building.position.set(0,65,0);
-scene.add(building);
+        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 6000);
+        camera.position.set(620, 360, 1220);
 
-// 東京タワー（簡略）
-const tower=new THREE.Mesh(
-  new THREE.CylinderGeometry(5,15,333,8),
-  new THREE.MeshStandardMaterial({color:0xdc2626})
-);
-tower.position.set(80,166,-580);
-scene.add(tower);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
 
-document.getElementById("loading").style.display="none";
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.target.set(0, 110, -140);
+        controls.maxDistance = 3800;
+        controls.minDistance = 120;
 
-function render(){
-  requestAnimationFrame(render);
-  controls.update();
-  renderer.render(scene,camera);
-}
-render();
+        scene.add(new THREE.AmbientLight(0xffffff, 0.94));
+        const light1 = new THREE.DirectionalLight(0xffffff, 0.85); light1.position.set(600, 800, 500); scene.add(light1);
+        const light2 = new THREE.DirectionalLight(0xffffff, 0.25); light2.position.set(-420, 280, -180); scene.add(light2);
+        scene.add(new THREE.GridHelper(2600, 130, 0xcbd5e1, 0xe5e7eb));
 
-window.addEventListener("resize",()=>{
-  camera.aspect=innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
-});
-</script>
+        const TSUBO_MIN = 1500, TSUBO_MAX = 2300;
+        function colorFromTsuboUnit(tsuboPrice) {
+          const t = (tsuboPrice - TSUBO_MIN) / (TSUBO_MAX - TSUBO_MIN || 1);
+          const color = new THREE.Color();
+          color.setHSL(0.58 - 0.52 * t, 0.60, 0.58);
+          return color;
+        }
+
+        function degToRad(d) { return d * Math.PI / 180; }
+        function metersPerDegLat() { return 111320; }
+        function metersPerDegLon(lat) { return 111320 * Math.cos(degToRad(lat)); }
+        function latLonToLocal(lat, lon, originLat, originLon) {
+          return { x: (lon - originLon) * metersPerDegLon(originLat), z: (lat - originLat) * metersPerDegLat() };
+        }
+        function localToLatLon(x, z, originLat, originLon) {
+          return { lat: originLat + z / metersPerDegLat(), lon: originLon + x / metersPerDegLon(originLat) };
+        }
+        function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+        function floorCenterY(floor, podiumH, typicalH) { return floor === 1 ? podiumH / 2 : podiumH + (floor - 2) * typicalH + typicalH / 2; }
+        function webMercatorTile(lat, lon, z) {
+          const latRad = degToRad(lat), n = Math.pow(2, z);
+          return { x: n * ((lon + 180) / 360), y: n * (1 - (Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI)) / 2 };
+        }
+
+        const DEM_Z = 14;
+        const tileCache = new Map();
+        async function fetchDemTile(x, y, z = DEM_Z) {
+          const key = `${z}/${x}/${y}`;
+          if (tileCache.has(key)) return tileCache.get(key);
+          const promise = new Promise((resolve, reject) => {
+            const img = new Image(); img.crossOrigin = "anonymous";
+            img.onload = () => {
+              const canvas = document.createElement("canvas"); canvas.width = 256; canvas.height = 256;
+              const ctx = canvas.getContext("2d", { willReadFrequently: true }); ctx.drawImage(img, 0, 0);
+              resolve(ctx.getImageData(0, 0, 256, 256).data);
+            };
+            img.onerror = reject;
+            img.src = `https://cyberjapandata.gsi.go.jp/xyz/dem_png/${z}/${x}/${y}.png`;
+          });
+          tileCache.set(key, promise); return promise;
+        }
+        function decodeGsiElevation(r, g, b) {
+          if (r === 128 && g === 0 && b === 0) return 0;
+          let x = r * 65536 + g * 256 + b;
+          if (x >= Math.pow(2, 23)) x -= Math.pow(2, 24);
+          return x * 0.01;
+        }
+        async function getElevation(lat, lon) {
+          const p = webMercatorTile(lat, lon, DEM_Z);
+          const tileX = Math.floor(p.x), tileY = Math.floor(p.y);
+          const pixelX = clamp(Math.floor((p.x - tileX) * 256), 0, 255), pixelY = clamp(Math.floor((p.y - tileY) * 256), 0, 255);
+          const data = await fetchDemTile(tileX, tileY, DEM_Z);
+          const idx = (pixelY * 256 + pixelX) * 4;
+          return decodeGsiElevation(data[idx], data[idx + 1], data[idx + 2]);
+        }
+
+        // 実位置から東京タワーの方向を計算しつつ、表示は「ほぼ真南・少しだけ南南東」に寄せる
+        const towerLocalActual = latLonToLocal(TOWER_LAT, TOWER_LON, BUILDING_LAT, BUILDING_LON);
+        const towerDistanceActual = Math.hypot(towerLocalActual.x, towerLocalActual.z) || 1;
+        const scaleTo590 = 590 / towerDistanceActual;
+        const actualScaled = { x: towerLocalActual.x * scaleTo590, z: towerLocalActual.z * scaleTo590 };
+        // 方向再確認のうえ、表示は「ほぼ真南、わずかに南南東」に補正
+        const towerLocal = { x: 92, z: -582 };
+        const towerDirLen = Math.hypot(towerLocal.x, towerLocal.z) || 1;
+        const towerDir = { x: towerLocal.x / towerDirLen, z: towerLocal.z / towerDirLen };
+
+        const TOTAL_FLOORS = 37, RES_START = 2, RES_END = 37, PODIUM_H = 6.0, TYPICAL_H = 3.6;
+        const buildingTotalHeight = PODIUM_H + (TOTAL_FLOORS - 1) * TYPICAL_H;
+        const outerW = 60.0, outerD = 70.0, ringDepth = 10.0, coreW = outerW - ringDepth * 2, coreD = outerD - ringDepth * 2;
+        const residentialFloors = Array.from({ length: RES_END - RES_START + 1 }, (_, i) => RES_START + i);
+
+        const terrainMinX = Math.min(-outerW / 2, towerLocal.x) - 200;
+        const terrainMaxX = Math.max(outerW / 2, towerLocal.x) + 200;
+        const terrainMinZ = Math.min(-outerD / 2, towerLocal.z) - 200;
+        const terrainMaxZ = Math.max(outerD / 2, towerLocal.z) + 200;
+        const terrainW = terrainMaxX - terrainMinX, terrainD = terrainMaxZ - terrainMinZ;
+
+        const buildingGround = await getElevation(BUILDING_LAT, BUILDING_LON);
+
+        // 地形メッシュを細かく + なめらかに
+        const TERRAIN_SEG_X = 120, TERRAIN_SEG_Z = 140;
+        const terrainGeo = new THREE.PlaneGeometry(terrainW, terrainD, TERRAIN_SEG_X, TERRAIN_SEG_Z);
+        terrainGeo.rotateX(-Math.PI / 2);
+        const pos = terrainGeo.attributes.position;
+        const widthPts = TERRAIN_SEG_X + 1, depthPts = TERRAIN_SEG_Z + 1;
+        const heights = Array(pos.count).fill(0);
+
+        const sampleJobs = [];
+        for (let i = 0; i < pos.count; i++) {
+          const vx = pos.getX(i) + terrainMinX + terrainW / 2;
+          const vz = pos.getZ(i) + terrainMinZ + terrainD / 2;
+          const { lat, lon } = localToLatLon(vx, vz, BUILDING_LAT, BUILDING_LON);
+          sampleJobs.push(getElevation(lat, lon).then(h => ({ i, h })));
+        }
+        const samples = await Promise.all(sampleJobs);
+        for (const s of samples) heights[s.i] = (s.h - buildingGround) * 1.6;
+
+        // 3回スムージング
+        for (let iter = 0; iter < 3; iter++) {
+          const smoothed = heights.slice();
+          for (let z = 0; z < depthPts; z++) {
+            for (let x = 0; x < widthPts; x++) {
+              const idx = z * widthPts + x;
+              let sum = heights[idx], n = 1;
+              if (x > 0) { sum += heights[idx - 1]; n++; }
+              if (x < widthPts - 1) { sum += heights[idx + 1]; n++; }
+              if (z > 0) { sum += heights[idx - widthPts]; n++; }
+              if (z < depthPts - 1) { sum += heights[idx + widthPts]; n++; }
+              if (x > 0 && z > 0) { sum += heights[idx - widthPts - 1]; n++; }
+              if (x < widthPts - 1 && z > 0) { sum += heights[idx - widthPts + 1]; n++; }
+              if (x > 0 && z < depthPts - 1) { sum += heights[idx + widthPts - 1]; n++; }
+              if (x < widthPts - 1 && z < depthPts - 1) { sum += heights[idx + widthPts + 1]; n++; }
+              smoothed[idx] = sum / n;
+            }
+          }
+          for (let i = 0; i < heights.length; i++) heights[i] = smoothed[i];
+        }
+
+        for (let i = 0; i < heights.length; i++) pos.setY(i, heights[i]);
+        pos.needsUpdate = true;
+        terrainGeo.computeVertexNormals();
+
+        const terrainMesh = new THREE.Mesh(
+          terrainGeo,
+          new THREE.MeshStandardMaterial({ color: 0xd7d7d2, roughness: 0.96, metalness: 0.02, side: THREE.DoubleSide })
+        );
+        terrainMesh.position.set(terrainMinX + terrainW / 2, 0, terrainMinZ + terrainD / 2);
+        scene.add(terrainMesh);
+
+        const towerLatLonExact = localToLatLon(actualScaled.x, actualScaled.z, BUILDING_LAT, BUILDING_LON);
+        const towerGround = await getElevation(towerLatLonExact.lat, towerLatLonExact.lon);
+        const buildingGroundY = 0, towerGroundY = (towerGround - buildingGround) * 1.6;
+
+        function makeTextSprite(label) {
+          const canvas = document.createElement("canvas"); canvas.width = 256; canvas.height = 128;
+          const ctx = canvas.getContext("2d"); ctx.fillStyle = "rgba(255,255,255,0.95)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.strokeStyle = "rgba(15,23,42,0.18)"; ctx.lineWidth = 4; ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+          ctx.fillStyle = "#0f172a"; ctx.font = "bold 70px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(label, canvas.width / 2, canvas.height / 2 + 4);
+          const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true }));
+          sprite.scale.set(70, 35, 1); return sprite;
+        }
+        const compassDistance = Math.max(Math.abs(terrainMinX), Math.abs(terrainMaxX), Math.abs(terrainMinZ), Math.abs(terrainMaxZ)) - 40;
+        [["N",0,compassDistance],["S",0,-compassDistance],["E",compassDistance,0],["W",-compassDistance,0]].forEach(([label,x,z])=>{const s=makeTextSprite(label);s.position.set(x,12,z);scene.add(s);});
+
+        function calcTsuboPrice(floor, sideVector, indexDistanceFromCenter) {
+          const floorRatio = (floor - 2) / (37 - 2);
+          const sideLen = Math.hypot(sideVector.x, sideVector.z) || 1;
+          const faceDir = { x: sideVector.x / sideLen, z: sideVector.z / sideLen };
+          const facing = Math.max(0, faceDir.x * towerDir.x + faceDir.z * towerDir.z);
+          let price = TSUBO_MIN + 30 + floorRatio * 230;
+          price += floorRatio * 520 * facing;
+          price += floorRatio * 170 * (1 - 0.45 * facing);
+          price += indexDistanceFromCenter * 8;
+          return Math.round(clamp(price, TSUBO_MIN, TSUBO_MAX));
+        }
+        function makeHorizontalRow(y, z, totalWidth, blockDepth, floor, sideName, roomBase, normalVec) {
+          const row = [], count = 8, gapX = 0.35, usableW = totalWidth - gapX * (count - 1), unitW = usableW / count;
+          let cursorX = -totalWidth / 2 + unitW / 2;
+          for (let idx = 0; idx < count; idx++) {
+            const x = cursorX; cursorX += unitW + gapX;
+            const areaM2 = +(unitW * blockDepth * 1.02).toFixed(1), areaTsubo = +(areaM2 / 3.305785).toFixed(1);
+            const distIdx = Math.abs(idx - (count - 1) / 2), tsuboPrice = calcTsuboPrice(floor, normalVec, distIdx), priceOku = +(areaTsubo * tsuboPrice / 10000).toFixed(2);
+            const roomNo = `${String(floor).padStart(2, '0')}${String(roomBase + idx).padStart(2, '0')}`;
+            row.push({ x, y, z, w: unitW, h: TYPICAL_H, d: blockDepth, floor, side: sideName, areaM2, areaTsubo, tsuboPrice, priceOku, roomNo });
+          } return row;
+        }
+        function makeVerticalRow(x, y, zCenter, blockWidth, totalDepth, floor, sideName, roomBase, normalVec) {
+          const row = [], count = 5, gapZ = 0.35, usableD = totalDepth - gapZ * (count - 1), unitD = usableD / count;
+          let cursorZ = zCenter - totalDepth / 2 + unitD / 2;
+          for (let idx = 0; idx < count; idx++) {
+            const z = cursorZ; cursorZ += unitD + gapZ;
+            const areaM2 = +(blockWidth * unitD * 1.02).toFixed(1), areaTsubo = +(areaM2 / 3.305785).toFixed(1);
+            const distIdx = Math.abs(idx - (count - 1) / 2), tsuboPrice = calcTsuboPrice(floor, normalVec, distIdx), priceOku = +(areaTsubo * tsuboPrice / 10000).toFixed(2);
+            const roomNo = `${String(floor).padStart(2, '0')}${String(roomBase + idx).padStart(2, '0')}`;
+            row.push({ x, y, z, w: blockWidth, h: TYPICAL_H, d: unitD, floor, side: sideName, areaM2, areaTsubo, tsuboPrice, priceOku, roomNo });
+          } return row;
+        }
+        const units = [];
+        residentialFloors.forEach(floor => {
+          const y = floorCenterY(floor, PODIUM_H, TYPICAL_H) + buildingGroundY;
+          const northZ = -(coreD / 2 + ringDepth / 2), southZ = +(coreD / 2 + ringDepth / 2), eastX = +(coreW / 2 + ringDepth / 2), westX = -(coreW / 2 + ringDepth / 2);
+          units.push(...makeHorizontalRow(y, northZ, outerW, ringDepth, floor, 'north', 1, { x: 0, z: -1 }));
+          units.push(...makeHorizontalRow(y, southZ, outerW, ringDepth, floor, 'south', 9, { x: 0, z: 1 }));
+          units.push(...makeVerticalRow(eastX, y, 0, ringDepth, coreD, floor, 'east', 17, { x: 1, z: 0 }));
+          units.push(...makeVerticalRow(westX, y, 0, ringDepth, coreD, floor, 'west', 22, { x: -1, z: 0 }));
+        });
+        avgLabel.textContent = Math.round(units.reduce((s, u) => s + u.tsuboPrice, 0) / units.length).toLocaleString() + '万円 / 専有坪';
+
+        const podium = new THREE.Mesh(new THREE.BoxGeometry(outerW + 6, PODIUM_H, outerD + 6), new THREE.MeshStandardMaterial({ color: 0xb8c0cc, transparent: true, opacity: 0.78 }));
+        podium.position.set(0, PODIUM_H / 2 + buildingGroundY, 0); scene.add(podium);
+        const podiumLine = new THREE.LineSegments(new THREE.EdgesGeometry(podium.geometry), new THREE.LineBasicMaterial({ color: 0x64748b })); podiumLine.position.copy(podium.position); scene.add(podiumLine);
+        const core = new THREE.Mesh(new THREE.BoxGeometry(coreW, buildingTotalHeight - PODIUM_H, coreD), new THREE.MeshStandardMaterial({ color: 0xd1d5db, transparent: true, opacity: 0.08 }));
+        core.position.set(0, PODIUM_H + (buildingTotalHeight - PODIUM_H) / 2 + buildingGroundY, 0); scene.add(core);
+        const coreLine = new THREE.LineSegments(new THREE.EdgesGeometry(core.geometry), new THREE.LineBasicMaterial({ color: 0x94a3b8 })); coreLine.position.copy(core.position); scene.add(coreLine);
+
+        const clickableMeshes = []; const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2(); let selectedOutline = null; const highlightMat = new THREE.LineBasicMaterial({ color: 0x0f172a });
+        units.forEach(u => {
+          const mesh = new THREE.Mesh(new THREE.BoxGeometry(u.w, u.h, u.d), new THREE.MeshStandardMaterial({ color: colorFromTsuboUnit(u.tsuboPrice) }));
+          mesh.position.set(u.x, u.y, u.z); mesh.userData = u; scene.add(mesh); clickableMeshes.push(mesh);
+          const line = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: 0x475569 })); line.position.copy(mesh.position); scene.add(line);
+        });
+        function showPopup(unit) {
+          popup.style.display = 'block'; popupTitle.textContent = `住戸 ${unit.roomNo}（${unit.floor}F / ${unit.side}側）`;
+          popupBody.innerHTML = `面積: <strong>${unit.areaM2.toLocaleString()}㎡</strong>（${unit.areaTsubo.toLocaleString()}坪）<br>坪単価: <strong>${unit.tsuboPrice.toLocaleString()}万円 / 坪</strong><br>価格: <strong>${unit.priceOku.toLocaleString()}億円</strong>`;
+        }
+        renderer.domElement.addEventListener('click', (event) => {
+          const rect = renderer.domElement.getBoundingClientRect(); mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1; mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera); const intersects = raycaster.intersectObjects(clickableMeshes, false);
+          if (intersects.length > 0) { const picked = intersects[0].object, unit = picked.userData; showPopup(unit); if (selectedOutline) scene.remove(selectedOutline); selectedOutline = new THREE.LineSegments(new THREE.EdgesGeometry(picked.geometry), highlightMat); selectedOutline.position.copy(picked.position); scene.add(selectedOutline); }
+        });
+
+        function addSquareFrustum(group, bottomW, topW, height, yBase, color, edgeColor = 0x991b1b) {
+          const geo = new THREE.CylinderGeometry(topW / Math.SQRT2, bottomW / Math.SQRT2, height, 4, 1, false);
+          const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color })); mesh.rotation.y = Math.PI / 4; mesh.position.y = yBase + height / 2; group.add(mesh);
+          const line = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: edgeColor })); line.rotation.y = Math.PI / 4; line.position.copy(mesh.position); group.add(line);
+        }
+        function addSquareCylinder(group, width, height, yBase, color, edgeColor = 0x991b1b) { addSquareFrustum(group, width, width, height, yBase, color, edgeColor); }
+        const towerGroup = new THREE.Group(), towerRed = 0xdc2626, towerWhite = 0xffffff;
+        addSquareFrustum(towerGroup, 38, 14, 140, towerGroundY + 0, towerRed);
+        addSquareCylinder(towerGroup, 22, 16, towerGroundY + 140, towerRed);
+        for (let i = 0; i < 6; i++) addSquareFrustum(towerGroup, 13 - i * 0.4, 12.6 - i * 0.4, 12, towerGroundY + 156 + i * 12, i % 2 === 0 ? towerWhite : towerRed, i % 2 === 0 ? 0xdc2626 : 0x991b1b);
+        addSquareCylinder(towerGroup, 14, 14, towerGroundY + 228, towerRed);
+        for (let i = 0; i < 4; i++) addSquareFrustum(towerGroup, 8.6 - i * 0.6, 8.0 - i * 0.6, 10, towerGroundY + 242 + i * 10, i % 2 === 0 ? towerWhite : towerRed, i % 2 === 0 ? 0xdc2626 : 0x991b1b);
+        addSquareFrustum(towerGroup, 6.2, 6.0, 1, towerGroundY + 282, towerWhite, 0xdc2626);
+        const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.6, 50, 10), new THREE.MeshStandardMaterial({ color: towerWhite })); antenna.position.y = towerGroundY + 308; towerGroup.add(antenna);
+        const antennaLine = new THREE.LineSegments(new THREE.EdgesGeometry(antenna.geometry), new THREE.LineBasicMaterial({ color: 0xdc2626 })); antennaLine.position.copy(antenna.position); towerGroup.add(antennaLine);
+        towerGroup.position.set(towerLocal.x, 0, towerLocal.z); scene.add(towerGroup);
+        scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, buildingGroundY, 0), new THREE.Vector3(towerLocal.x, towerGroundY, towerLocal.z)]), new THREE.LineBasicMaterial({ color: 0xef4444 })));
+        const centerMarker = new THREE.Mesh(new THREE.SphereGeometry(3.2, 16, 16), new THREE.MeshStandardMaterial({ color: 0x2563eb })); centerMarker.position.set(0, buildingGroundY + 1.8, 0); scene.add(centerMarker);
+
+        loading.style.display = 'none';
+        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+        animate();
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+      }).catch(err => showError(err && err.stack ? err.stack : String(err)));
+    } catch (e) { showError(e && e.stack ? e.stack : String(e)); }
+  </script>
 </body>
 </html>
